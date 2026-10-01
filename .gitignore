@@ -1,0 +1,8 @@
+/atto
+/dist/
+/coverage.out
+.agents/
+.codex/
+.aws/
+__pycache__/
+*.pyc

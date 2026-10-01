@@ -1,0 +1,16 @@
+name: Feature request
+description: 機能追加や操作の改善を提案する
+labels: [enhancement]
+body:
+  - type: textarea
+    id: usecase
+    attributes:
+      label: 解決したいこと
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 希望する操作と動作
+    validations:
+      required: true

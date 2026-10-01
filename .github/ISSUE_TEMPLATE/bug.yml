@@ -1,0 +1,24 @@
+name: Bug report
+description: 不具合を報告する
+labels: [bug]
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: 実行環境
+      description: atto -version、OS、端末アプリを記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順
+      description: 入力内容と操作したキーを記載してください。秘密情報を含むファイルは添付しないでください。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動作と実際の動作
+    validations:
+      required: true
