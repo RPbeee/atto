@@ -44,6 +44,8 @@ type Editor struct {
 	projectWorkers            projectWorkers
 	syntaxEnabled             bool
 	paintSyntax               *syntaxCache
+	explorer                  *explorer
+	explorerDir               string
 }
 
 func newEditor(screen tcell.Screen) *Editor {
@@ -367,7 +369,7 @@ func (e *Editor) handle(ev tcell.Event) {
 					p.text = append(p.text[:p.cursor], append(runes, p.text[p.cursor:]...)...)
 					p.cursor += len(runes)
 				}
-			} else if !e.help && !e.listing && !e.projectView {
+			} else if !e.help && !e.listing && !e.projectView && e.explorer == nil {
 				e.insert(s)
 			}
 		}
@@ -393,6 +395,10 @@ func (e *Editor) handleKey(ev *tcell.EventKey) {
 	}
 	if e.projectView {
 		e.projectKeys(ev)
+		return
+	}
+	if e.explorer != nil {
+		e.explorerKeys(ev)
 		return
 	}
 	if e.help {
@@ -466,11 +472,7 @@ func (e *Editor) handleKey(ev *tcell.EventKey) {
 		e.switchTo(len(e.buffers) - 1)
 		e.message = "New buffer"
 	case tcell.KeyCtrlR:
-		e.ask("Open file:", "", func(path string) {
-			if err := e.open(path); err != nil {
-				e.fail(err)
-			}
-		})
+		e.openExplorer()
 	case tcell.KeyCtrlO:
 		e.saveBuffer(b, true, nil)
 	case tcell.KeyCtrlS:

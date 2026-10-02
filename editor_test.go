@@ -234,7 +234,7 @@ func TestBracketedPasteIsOneEditAndNoCommands(t *testing.T) {
 	if len(e.current().Text) != 0 {
 		t.Fatal("paste not grouped")
 	}
-	key(e, tcell.KeyCtrlR)
+	key(e, tcell.KeyCtrlO)
 	e.handle(tcell.NewEventPaste(true))
 	typed(e, "a")
 	key(e, tcell.KeyEnter)

@@ -209,6 +209,9 @@ func (e *Editor) draw() {
 	if e.projectView {
 		e.drawProject(w, h)
 	}
+	if e.explorer != nil {
+		e.drawExplorer(w, h)
+	}
 	if e.prompt != nil {
 		p := e.prompt
 		e.bar(h-3, w, activeStyle)
@@ -234,7 +237,7 @@ func (e *Editor) drawHelp(w, h int) {
 	e.text(0, 0, w, " atto — Help (any key returns)", barStyle)
 	help := []string{
 		"Ctrl-S Save             Ctrl-O Save As (choose path)",
-		"Ctrl-R Open file        Ctrl-N New buffer",
+		"Ctrl-R Open (file explorer; h/j/k/l, Enter, ~ type path)   Ctrl-N New",
 		"Ctrl-X Close buffer     Ctrl-Q Quit all buffers",
 		"F5 / Alt-[ Previous     F6 / Alt-] Next buffer",
 		"Ctrl-B Buffer list      F2 Save all modified buffers",
