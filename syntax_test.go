@@ -221,3 +221,44 @@ func TestGoUnfinishedStringsAndEscapes(t *testing.T) {
 		t.Fatal("ordinary string incorrectly spanned newline")
 	}
 }
+func TestAssemblyCommentForms(t *testing.T) {
+	for _, path := range []string{"start.S", "start.s"} {
+		b := bufferWith("# hash line\n  movq $1, %rax # trailing\n  mov r0, #1 @ at\n  b done // slash\n  /* block\n  rax */\n  nop ; semi\n")
+		b.Path = path
+		for _, needle := range []string{"hash", "trailing", "at\n", "slash", "block", "semi"} {
+			if syntaxAt(b, needle) != commentStyle {
+				t.Fatalf("%s: %q is not a comment", path, needle)
+			}
+		}
+		if syntaxAt(b, "#1") == commentStyle {
+			t.Fatalf("%s: ARM immediate coloured as comment", path)
+		}
+	}
+}
+func TestCommentsInFilesChromaMisreads(t *testing.T) {
+	for _, fixture := range []struct{ path, text string }{
+		{"kernel.cu", "int x; // CMT\n"},
+		{"view.mm", "int x; // CMT\n"},
+		{"shader.glsl", "void main() {} // CMT\n"},
+		{"style.less", "a { color: red; } // CMT\n"},
+		{"app.conf", "key value # CMT\n"},
+		{"app.conf", "# CMT\nkey value\n"},
+		{".gitignore", "build/\n# CMT\n"},
+		{"go.mod", "module x\n\ngo 1.25 // CMT\n"},
+		{"a.m", "#import <Foundation/Foundation.h>\nint x; // CMT\n"},
+		{"a.m", "x = 1; % CMT\n"},
+		{"a.v", "module m; endmodule // CMT\n"},
+		{"a.v", "Require Import X. (* CMT *)\n"},
+	} {
+		b := bufferWith(fixture.text)
+		b.Path = fixture.path
+		if syntaxAt(b, "CMT") != commentStyle {
+			t.Fatalf("%s: comment not coloured (language %s)", fixture.path, b.highlight().language)
+		}
+	}
+	b := bufferWith("key = #1\n")
+	b.Path = "app.conf"
+	if syntaxAt(b, "#1") == commentStyle {
+		t.Fatal("hash without space coloured as comment")
+	}
+}

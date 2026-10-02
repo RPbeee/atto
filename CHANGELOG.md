@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2
+
+- アセンブリ（`.s` / `.S`）で`#`・`//`のコメントが色分けされない問題を修正。
+- 色分け対象外・誤判定だった拡張子を補正：`.cu` `.cuh` `.mm` `.glsl` `.less` `.fsx` `.cljs` `.ron` `.tfvars` `.j2` `.mdx` `.conf` `.gitignore` など。`go.mod`をGoとして扱い、`.m`（Objective-C / MATLAB / Mathematica）と`.v`（Verilog / Coq / V）は内容から判定。
+
 ## 0.4.1
 
 - 依存ライブラリを更新（tcell 2.13.10、chroma 2.27.0、uniseg 0.4.7）。

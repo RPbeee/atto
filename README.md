@@ -13,7 +13,7 @@ Go製の小さなターミナルエディタです。nanoに近いキー操作�
 Goがインストールされている環境ではソースからインストールできます。非公開の場合は`GOPRIVATE=github.com/RPbeee/atto`の指定とGitHubへのGit認証も必要です。
 
 ```sh
-go install github.com/RPbeee/atto@v0.4.1
+go install github.com/RPbeee/atto@v0.4.2
 ```
 
 Linux / macOSでCIを実行し、Windowsはクロスビルドを確認しています。Windows実端末での操作は未検証です。

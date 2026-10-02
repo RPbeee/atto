@@ -53,6 +53,117 @@ var editingGoLexer = chroma.MustNewLexer(lexers.Go.Config(), func() chroma.Rules
 	return rules
 }).SetRegistry(lexers.GlobalLexerRegistry)
 
+// Chroma maps *.s / *.S to the ARM lexer, whose comment rules miss "#" and "//"
+// used by x86, RISC-V and AArch64 GNU assembly (they would show as errors).
+// These rules colour every common GNU assembler comment form. "#" is a comment
+// only at line start or before whitespace so ARM immediates such as "#1" stay code.
+// They go first in the states that read instructions, never in string literals.
+func assemblyLexer(base chroma.Lexer) chroma.Lexer {
+	regex, ok := base.(*chroma.RegexLexer)
+	if !ok {
+		return base
+	}
+	return chroma.MustNewLexer(base.Config(), func() chroma.Rules {
+		rules := regex.MustRules().Clone()
+		prefix := []chroma.Rule{
+			{Pattern: `(?s:/\*.*?(?:\*/|\z))`, Type: chroma.CommentMultiline},
+			{Pattern: `//[^\n]*\n?`, Type: chroma.CommentSingle},
+			{Pattern: `(?m:(?<=^[ \t]*)#[^\n]*\n?)`, Type: chroma.CommentSingle},
+			{Pattern: `(?<=[ \t])#(?=[ \t\n#]|\z)[^\n]*\n?`, Type: chroma.CommentSingle},
+		}
+		for _, state := range []string{"root", "opcode"} {
+			rules[state] = append(append([]chroma.Rule{}, prefix...), rules[state]...)
+		}
+		return rules
+	}).SetRegistry(lexers.GlobalLexerRegistry)
+}
+
+var assemblyLexers = map[string]chroma.Lexer{}
+
+func init() {
+	for _, name := range []string{"ArmAsm"} {
+		if base := lexers.Get(name); base != nil {
+			assemblyLexers[name] = assemblyLexer(base)
+		}
+	}
+}
+
+// Chroma has no lexer for these names, or picks the wrong language for them, so
+// files stayed plain or showed "//" and "#" comments as ordinary text.
+var extensionLexers = map[string]string{
+	".cu": "cpp", ".cuh": "cpp", ".ixx": "cpp", ".cppm": "cpp", ".mm": "objective-c",
+	".glsl": "glsl", ".comp": "glsl", ".tesc": "glsl", ".tese": "glsl", ".less": "scss",
+	".fsx": "fsharp", ".cljs": "clojure", ".cljc": "clojure", ".ron": "rust",
+	".tfvars": "terraform", ".jinja": "jinja", ".jinja2": "jinja", ".j2": "jinja",
+	".mdx": "markdown", ".profile": "bash",
+}
+
+// hashCommentLexer colours "#" comments in config-like files that have no grammar.
+var hashCommentLexer = chroma.MustNewLexer(&chroma.Config{Name: "Config"}, func() chroma.Rules {
+	return chroma.Rules{"root": {
+		{Pattern: `(?m:(?<=^[ \t]*)#[^\n]*\n?)`, Type: chroma.CommentSingle},
+		{Pattern: `(?<=[ \t])#(?=[ \t]|\n|\z)[^\n]*\n?`, Type: chroma.CommentSingle},
+		{Pattern: `[^#\n]+|#|\n`, Type: chroma.Text},
+	}}
+})
+var hashCommentFiles = map[string]bool{".conf": true, ".gitignore": true, ".dockerignore": true,
+	".npmignore": true, ".gitattributes": true, ".gitmodules": true, ".ignore": true}
+
+func containsAny(text string, words ...string) bool {
+	for _, w := range words {
+		if strings.Contains(text, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// ambiguousLexer settles extensions shared by several languages from the content.
+func ambiguousLexer(name string, text []rune) chroma.Lexer {
+	sample := string(text[:min(len(text), 8192)])
+	switch name {
+	case "go.mod", "go.work":
+		return lexers.Get("go")
+	case ".m": // Objective-C, MATLAB/Octave or Mathematica
+		switch {
+		case containsAny(sample, "#import", "@interface", "@implementation", "@end", "@property", "NSString"):
+			return lexers.Get("objective-c")
+		case containsAny(sample, "(*", ":=", "[["):
+			return lexers.Get("mathematica")
+		default:
+			return lexers.Get("matlab")
+		}
+	case ".v": // Verilog, Coq or V
+		switch {
+		case containsAny(sample, "endmodule"):
+			return lexers.Get("verilog")
+		case containsAny(sample, "Require ", "Definition ", "Lemma ", "Theorem ", "Inductive ", "Fixpoint ", "Proof."):
+			return lexers.Get("coq")
+		case containsAny(sample, "fn ", "import ", ":="):
+			return lexers.Get("v")
+		default:
+			return lexers.Get("verilog")
+		}
+	}
+	return nil
+}
+func fallbackLexer(base string, text []rune) chroma.Lexer {
+	ext := strings.ToLower(filepath.Ext(base))
+	if lexer := ambiguousLexer(base, text); lexer != nil {
+		return lexer
+	}
+	if lexer := ambiguousLexer(ext, text); lexer != nil {
+		return lexer
+	}
+	if hashCommentFiles[base] || hashCommentFiles[ext] {
+		return hashCommentLexer
+	}
+	if name, ok := extensionLexers[ext]; ok {
+		return lexers.Get(name)
+	}
+	return nil
+}
+
 func shebangLexer(line string) chroma.Lexer {
 	fields := strings.Fields(strings.TrimPrefix(line, "#!"))
 	if len(fields) == 0 {
@@ -130,7 +241,18 @@ func (b *Buffer) syntaxLexer() chroma.Lexer {
 		return lexers.Get(b.SyntaxLanguage)
 	}
 	if b.Path != "" {
-		if lexer := lexers.Match(filepath.Base(b.Path)); lexer != nil {
+		base := filepath.Base(b.Path)
+		// Ambiguous or unsupported names are decided before Chroma's own match.
+		if lexer := ambiguousLexer(base, b.Text); lexer != nil {
+			return lexer
+		}
+		if ext := strings.ToLower(filepath.Ext(base)); ext == ".m" || ext == ".v" {
+			return ambiguousLexer(ext, b.Text)
+		}
+		if lexer := lexers.Match(base); lexer != nil {
+			return lexer
+		}
+		if lexer := fallbackLexer(base, b.Text); lexer != nil {
 			return lexer
 		}
 	}
@@ -176,6 +298,8 @@ func (b *Buffer) highlight() *syntaxCache {
 	}()
 	if lexer.Config().Name == "Go" {
 		lexer = editingGoLexer
+	} else if asm, ok := assemblyLexers[lexer.Config().Name]; ok {
+		lexer = asm
 	}
 	iterator, err := chroma.Coalesce(lexer).Tokenise(&chroma.TokeniseOptions{State: "root", EnsureLF: false}, text)
 	if err != nil {
