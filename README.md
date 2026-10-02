@@ -13,14 +13,14 @@ Go製の小さなターミナルエディタです。nanoに近いキー操作�
 Goがインストールされている環境ではソースからインストールできます。非公開の場合は`GOPRIVATE=github.com/RPbeee/atto`の指定とGitHubへのGit認証も必要です。
 
 ```sh
-go install github.com/RPbeee/atto@v0.4.0
+go install github.com/RPbeee/atto@v0.4.1
 ```
 
 Linux / macOSでCIを実行し、Windowsはクロスビルドを確認しています。Windows実端末での操作は未検証です。
 
 ## 起動
 
-Go 1.23以降と、対話操作できるターミナルが必要です。
+Go 1.25以降と、対話操作できるターミナルが必要です。
 
 ```sh
 go build -buildvcs=false -o atto .

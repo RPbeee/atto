@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            go: '1.23.x'
+            go: '1.25.x'
           - os: ubuntu-latest
             go: stable
           - os: macos-latest

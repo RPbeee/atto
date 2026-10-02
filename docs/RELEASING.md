@@ -2,7 +2,7 @@
 
 ## 日常の検証
 
-mainへのpushとPull Requestで、LinuxのGo 1.23・最新stable、およびmacOSの最新stableを検証します。整形、モジュール整合性、vet、race検査、ビルド、実端末相当のPTYテストを実行します。
+mainへのpushとPull Requestで、LinuxのGo 1.25・最新stable、およびmacOSの最新stableを検証します。整形、モジュール整合性、vet、race検査、ビルド、実端末相当のPTYテストを実行します。
 
 GitHub公式ActionsはバージョンのコミットSHAに固定しています。DependabotがGoモジュールとActionsの更新を週次で提案します。
 

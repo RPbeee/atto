@@ -10,7 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-var version = "0.4.0"
+var version = "0.4.1"
 
 func run(paths []string) error {
 	e := newEditor(nil)
