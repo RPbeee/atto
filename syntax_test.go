@@ -262,3 +262,40 @@ func TestCommentsInFilesChromaMisreads(t *testing.T) {
 		t.Fatal("hash without space coloured as comment")
 	}
 }
+func TestMakefileDirectivesAndIntelAssembly(t *testing.T) {
+	b := bufferWith("# top\nifeq ($(OS),Linux)\nCC := gcc # trail\nelse\nCC := cc\nendif\ninclude config.mk # inc\ndefine X\nendef\n\nall:\n\t$(CC) -o $@ # recipe\n")
+	b.Path = "Makefile"
+	for _, word := range []string{"ifeq", "else", "endif", "include", "define", "endef"} {
+		if syntaxAt(b, word) != keywordStyle {
+			t.Fatalf("%s not a keyword", word)
+		}
+	}
+	for _, word := range []string{"top", "trail", "# inc", "recipe"} {
+		if syntaxAt(b, word) != commentStyle {
+			t.Fatalf("%s not a comment", word)
+		}
+	}
+	if syntaxAt(b, "ifeq ($") == errorStyle || syntaxAt(b, "Linux") == errorStyle {
+		t.Fatal("directive arguments coloured as errors")
+	}
+	asm := bufferWith(".intel_syntax noprefix\nmain:\n  mov rax, QWORD PTR [rbp-8] # c1\n  lea rdi, [rip+msg] // c2\n  call puts@PLT ; c3\n  add rax, 1 # c4\n")
+	asm.Path = "start.s"
+	if asm.highlight().language != "GAS" {
+		t.Fatal(asm.highlight().language)
+	}
+	for _, word := range []string{"c1", "c2", "c3", "c4"} {
+		if syntaxAt(asm, word) != commentStyle {
+			t.Fatalf("%s not a comment", word)
+		}
+	}
+	for _, spot := range []string{"+msg", "rax, QWORD"} {
+		if syntaxAt(asm, spot) == errorStyle {
+			t.Fatalf("%q coloured as error", spot)
+		}
+	}
+	nasm := bufferWith("section .text\n_start:\n  mov eax, [ebp+8] ; c\n")
+	nasm.Path = "x.asm"
+	if syntaxAt(nasm, "; c") != commentStyle || syntaxAt(nasm, "ebp") == errorStyle {
+		t.Fatal("NASM Intel syntax")
+	}
+}

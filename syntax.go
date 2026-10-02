@@ -53,37 +53,53 @@ var editingGoLexer = chroma.MustNewLexer(lexers.Go.Config(), func() chroma.Rules
 	return rules
 }).SetRegistry(lexers.GlobalLexerRegistry)
 
-// Chroma maps *.s / *.S to the ARM lexer, whose comment rules miss "#" and "//"
-// used by x86, RISC-V and AArch64 GNU assembly (they would show as errors).
-// These rules colour every common GNU assembler comment form. "#" is a comment
-// only at line start or before whitespace so ARM immediates such as "#1" stay code.
-// They go first in the states that read instructions, never in string literals.
-func assemblyLexer(base chroma.Lexer) chroma.Lexer {
+// withRules returns base with extra rules placed first in the named states, so
+// editor fixes take priority over Chroma's grammar without forking it.
+func withRules(base chroma.Lexer, extra map[string][]chroma.Rule) chroma.Lexer {
 	regex, ok := base.(*chroma.RegexLexer)
 	if !ok {
 		return base
 	}
 	return chroma.MustNewLexer(base.Config(), func() chroma.Rules {
 		rules := regex.MustRules().Clone()
-		prefix := []chroma.Rule{
-			{Pattern: `(?s:/\*.*?(?:\*/|\z))`, Type: chroma.CommentMultiline},
-			{Pattern: `//[^\n]*\n?`, Type: chroma.CommentSingle},
-			{Pattern: `(?m:(?<=^[ \t]*)#[^\n]*\n?)`, Type: chroma.CommentSingle},
-			{Pattern: `(?<=[ \t])#(?=[ \t\n#]|\z)[^\n]*\n?`, Type: chroma.CommentSingle},
-		}
-		for _, state := range []string{"root", "opcode"} {
+		for state, prefix := range extra {
 			rules[state] = append(append([]chroma.Rule{}, prefix...), rules[state]...)
 		}
 		return rules
 	}).SetRegistry(lexers.GlobalLexerRegistry)
 }
 
-var assemblyLexers = map[string]chroma.Lexer{}
+// Chroma maps *.s / *.S to the ARM lexer, whose comment rules miss "#" and "//"
+// used by x86, RISC-V and AArch64 GNU assembly (they would show as errors).
+// These rules colour every common GNU assembler comment form. "#" is a comment
+// only at line start or before whitespace so ARM immediates such as "#1" stay code.
+// They go first in the states that read instructions, never in string literals.
+var assemblyComments = []chroma.Rule{
+	{Pattern: `(?s:/\*.*?(?:\*/|\z))`, Type: chroma.CommentMultiline},
+	{Pattern: `//[^\n]*\n?`, Type: chroma.CommentSingle},
+	{Pattern: `(?m:(?<=^[ \t]*)#[^\n]*\n?)`, Type: chroma.CommentSingle},
+	{Pattern: `(?<=[ \t])#(?=[ \t\n#]|\z)[^\n]*\n?`, Type: chroma.CommentSingle},
+}
+
+// GNU as in Intel syntax writes addresses like [rip+msg]; "+" is an Error in Chroma's GAS lexer.
+var gasOperator = []chroma.Rule{{Pattern: `\+`, Type: chroma.Operator}}
+
+// make conditionals and include directives are Errors in Chroma's Makefile lexer.
+var makeDirectives = []chroma.Rule{
+	{Pattern: `(?m:^)(ifeq|ifneq|ifdef|ifndef|else|endif|define|endef|-?include|sinclude|vpath)\b([^\n#]*)`, Type: chroma.ByGroups(chroma.Keyword, chroma.Text)},
+	{Pattern: `(?m:^)(override|undefine|unexport)\b`, Type: chroma.Keyword},
+}
+
+var overlayLexers = map[string]chroma.Lexer{}
 
 func init() {
-	for _, name := range []string{"ArmAsm"} {
+	for name, extra := range map[string]map[string][]chroma.Rule{
+		"ArmAsm":   {"root": assemblyComments, "opcode": assemblyComments},
+		"GAS":      {"instruction-args": gasOperator, "directive-args": gasOperator},
+		"Makefile": {"root": makeDirectives},
+	} {
 		if base := lexers.Get(name); base != nil {
-			assemblyLexers[name] = assemblyLexer(base)
+			overlayLexers[name] = withRules(base, extra)
 		}
 	}
 }
@@ -250,6 +266,10 @@ func (b *Buffer) syntaxLexer() chroma.Lexer {
 			return ambiguousLexer(ext, b.Text)
 		}
 		if lexer := lexers.Match(base); lexer != nil {
+			// "*.s" is matched to the ARM lexer; Intel-syntax x86 needs the GNU one.
+			if lexer.Config().Name == "ArmAsm" && strings.Contains(string(b.Text[:min(len(b.Text), 8192)]), ".intel_syntax") {
+				return lexers.Get("gas")
+			}
 			return lexer
 		}
 		if lexer := fallbackLexer(base, b.Text); lexer != nil {
@@ -298,8 +318,8 @@ func (b *Buffer) highlight() *syntaxCache {
 	}()
 	if lexer.Config().Name == "Go" {
 		lexer = editingGoLexer
-	} else if asm, ok := assemblyLexers[lexer.Config().Name]; ok {
-		lexer = asm
+	} else if overlay, ok := overlayLexers[lexer.Config().Name]; ok {
+		lexer = overlay
 	}
 	iterator, err := chroma.Coalesce(lexer).Tokenise(&chroma.TokeniseOptions{State: "root", EnsureLF: false}, text)
 	if err != nil {
