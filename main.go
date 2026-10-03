@@ -10,10 +10,17 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-var version = "0.4.3"
+var version = "0.5.0"
 
-func run(paths []string) error {
+func run(paths []string) error { return runConfigured(paths, "") }
+
+func runConfigured(paths []string, configPath string) error {
+	config, err := loadConfig(configPath)
+	if err != nil {
+		return err
+	}
 	e := newEditor(nil)
+	e.config = config
 	for _, path := range paths {
 		if err := e.open(path); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
@@ -32,6 +39,7 @@ func run(paths []string) error {
 	}
 	defer screen.Fini()
 	defer e.shutdownProject()
+	defer e.shutdownLint()
 	e.screen = screen
 	screen.EnablePaste()
 	// Signals wake PollEvent so deferred terminal restoration runs on exit.
@@ -62,6 +70,7 @@ func run(paths []string) error {
 	return nil
 }
 func main() {
+	configPath := flag.String("config", "", "config file (default: user config directory/atto/config.json)")
 	showVersion := flag.Bool("version", false, "print version")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: atto [options] [file ...]\n\nA small multi-buffer terminal editor.\nCtrl-G: help; Ctrl-S: save; Ctrl-X: close; Ctrl-Q: quit.\n\n")
@@ -72,7 +81,7 @@ func main() {
 		fmt.Println("atto " + version)
 		return
 	}
-	if err := run(flag.Args()); err != nil {
+	if err := runConfigured(flag.Args(), *configPath); err != nil {
 		fmt.Fprintln(os.Stderr, "atto:", err)
 		os.Exit(1)
 	}

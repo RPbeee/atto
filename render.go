@@ -104,6 +104,7 @@ func (e *Editor) draw() {
 	s.HideCursor()
 	w, h := s.Size()
 	e.pollProject()
+	e.pollLint()
 	e.ensurePanes()
 	e.savePane()
 	if len(e.buffers) == 0 {
@@ -212,6 +213,9 @@ func (e *Editor) draw() {
 	if e.explorer != nil {
 		e.drawExplorer(w, h)
 	}
+	if e.lintView {
+		e.drawLint(w, h)
+	}
 	if e.prompt != nil {
 		p := e.prompt
 		e.bar(h-3, w, activeStyle)
@@ -236,6 +240,7 @@ func (e *Editor) drawHelp(w, h int) {
 	e.bar(0, w, barStyle)
 	e.text(0, 0, w, " atto — Help (any key returns)", barStyle)
 	help := []string{
+		"F10 Run lint (saved file)  F11 Diagnostics; Enter jumps",
 		"Ctrl-S Save             Ctrl-O Save As (choose path)",
 		"Ctrl-R Open (file explorer; h/j/k/l, Enter, ~ type path)   Ctrl-N New",
 		"Ctrl-X Close buffer     Ctrl-Q Quit all buffers",

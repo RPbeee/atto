@@ -4,7 +4,7 @@
 
 [ダウンロード](https://github.com/RPbeee/atto/releases) · [リリース履歴](CHANGELOG.md) · [開発への参加](CONTRIBUTING.md)
 
-Go製の小さなターミナルエディタです。nanoに近いキー操作で、複数ファイルを独立したバッファとして編集できます。左右・上下の画面分割、プロジェクト内検索、矩形編集、シンタックスハイライトにも対応しています。
+Go製の小さなターミナルエディタです。nanoに近いキー操作で、複数ファイルを独立したバッファとして編集できます。左右・上下の画面分割、プロジェクト内検索、矩形編集、シンタックスハイライト、設定に応じた保存時の自動lintにも対応しています。
 
 ## インストール
 
@@ -13,7 +13,7 @@ Go製の小さなターミナルエディタです。nanoに近いキー操作�
 Goがインストールされている環境ではソースからインストールできます。非公開の場合は`GOPRIVATE=github.com/RPbeee/atto`の指定とGitHubへのGit認証も必要です。
 
 ```sh
-go install github.com/RPbeee/atto@v0.4.3
+go install github.com/RPbeee/atto@v0.5.0
 ```
 
 Linux / macOSでCIを実行し、Windowsはクロスビルドを確認しています。Windows実端末での操作は未検証です。
@@ -142,3 +142,9 @@ nanoの完全互換ではありません。折り返し、OSのクリップボ�
 詳しい仕様は [docs/SPEC.md](docs/SPEC.md)、構成・開発手順は [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) を参照してください。
 
 端末制御には [tcell v2](https://pkg.go.dev/github.com/gdamore/tcell/v2)、文字境界・表示幅には [uniseg](https://github.com/rivo/uniseg)、構文解析には [Chroma](https://github.com/alecthomas/chroma) を使用しています。
+
+## 自動lintの設定
+
+ユーザー設定ファイル（Linuxでは `~/.config/atto/config.json`）で、`lint.on_save` とファイルごとの実行コマンドを指定できます。既定では無効です。**F10**で手動実行、**F11**で診断一覧、**Enter**で該当行に移動します。未保存の変更がある場合は先に保存してください。
+
+[設定例と仕様](docs/CONFIGURATION.md) · [サンプルJSON](examples/config.json)

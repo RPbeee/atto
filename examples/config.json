@@ -1,0 +1,13 @@
+{
+  "lint": {
+    "on_save": true,
+    "timeout_seconds": 10,
+    "rules": [
+      {
+        "pattern": "*.go",
+        "command": ["go", "vet", "./..."],
+        "directory": "{dir}"
+      }
+    ]
+  }
+}

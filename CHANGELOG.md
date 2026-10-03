@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- ユーザー設定JSONと`-config`による設定指定。
+- ファイル名globごとのコマンドで保存時に自動lint。非同期実行・タイムアウト・出力上限。
+- F10で手動lint、F11で診断一覧、Enterで診断先へ移動。編集後の古い結果は無効化。
+
 ## 0.4.3
 
 - Makefileの`ifeq` `else` `endif` `define` `include`などをキーワードとして色分け（従来はエラー色）。

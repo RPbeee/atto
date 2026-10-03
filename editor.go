@@ -18,6 +18,12 @@ type prompt struct {
 }
 
 type Editor struct {
+	config                    Config
+	lintJobs                  map[*Buffer]*lintJob
+	lintResults               map[*Buffer]lintState
+	lintWorkers               lintWorkers
+	lintView                  bool
+	lintIndex                 int
 	screen                    tcell.Screen
 	buffers                   []*Buffer
 	active                    int
@@ -120,6 +126,7 @@ func (e *Editor) saveBuffer(b *Buffer, askName bool, then func()) {
 				return
 			}
 			e.message = "Saved " + b.name()
+			e.startLint(b, false)
 			if then != nil {
 				then()
 			}
@@ -156,6 +163,8 @@ func (e *Editor) saveAll(index int) {
 func (e *Editor) closeCurrent() {
 	b := e.current()
 	close := func() {
+		e.stopLint(b)
+		delete(e.lintResults, b)
 		e.buffers = append(e.buffers[:e.active], e.buffers[e.active+1:]...)
 		if len(e.buffers) == 0 {
 			e.panes = nil
@@ -345,6 +354,7 @@ func (e *Editor) handlePrompt(ev *tcell.EventKey) {
 }
 func (e *Editor) handle(ev tcell.Event) {
 	e.pollProject()
+	e.pollLint()
 	if len(e.buffers) > 0 {
 		b := e.current()
 		old := b.Text
@@ -369,7 +379,7 @@ func (e *Editor) handle(ev tcell.Event) {
 					p.text = append(p.text[:p.cursor], append(runes, p.text[p.cursor:]...)...)
 					p.cursor += len(runes)
 				}
-			} else if !e.help && !e.listing && !e.projectView && e.explorer == nil {
+			} else if !e.help && !e.listing && !e.projectView && e.explorer == nil && !e.lintView {
 				e.insert(s)
 			}
 		}
@@ -391,6 +401,10 @@ func (e *Editor) handleKey(ev *tcell.EventKey) {
 	}
 	if e.prompt != nil {
 		e.handlePrompt(ev)
+		return
+	}
+	if e.lintView {
+		e.lintKeys(ev)
 		return
 	}
 	if e.projectView {
@@ -452,6 +466,11 @@ func (e *Editor) handleKey(ev *tcell.EventKey) {
 		return
 	}
 	switch ev.Key() {
+	case tcell.KeyF10:
+		e.startLint(b, true)
+	case tcell.KeyF11:
+		e.lintView = true
+		e.lintIndex = 0
 	case tcell.KeyF9:
 		e.syntaxEnabled = !e.syntaxEnabled
 		e.message = "Syntax highlighting toggled (F9)"
