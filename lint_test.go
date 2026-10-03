@@ -66,6 +66,10 @@ func TestLintConfig(t *testing.T) {
 }
 func TestLintExecution(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "name with spaces.go")
+	path, err := canonical(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := runLint(context.Background(), helperLint(t, "diagnostic"), path)
 	if r.Err == nil || len(r.Items) != 1 || r.Items[0].Path != path || r.Items[0].Line != 2 || r.Items[0].Column != 3 {
 		t.Fatalf("%+v", r)
